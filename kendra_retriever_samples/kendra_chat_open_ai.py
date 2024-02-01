@@ -1,9 +1,11 @@
 from langchain.retrievers import AmazonKendraRetriever
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
-from langchain import OpenAI
 import sys
 import os
+
+from langchain.schema import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 
 MAX_HISTORY_LENGTH = 5
 
@@ -11,7 +13,7 @@ def build_chain():
   region = os.environ["AWS_REGION"]
   kendra_index_id = os.environ["KENDRA_INDEX_ID"]
 
-  llm = OpenAI(batch_size=5, temperature=0, max_tokens=300)
+  llm = ChatOpenAI(batch_size=5, temperature=0, max_tokens=300, model = "gpt-4-0125-preview")
       
   retriever = AmazonKendraRetriever(index_id=kendra_index_id, region_name=region)
 
@@ -38,12 +40,13 @@ def build_chain():
   Standalone question:"""
   standalone_question_prompt = PromptTemplate.from_template(condense_qa_template)
 
-  qa = ConversationalRetrievalChain.from_llm(
-        llm=llm, 
-        retriever=retriever, 
-        condense_question_prompt=standalone_question_prompt, 
-        return_source_documents=True, 
-        combine_docs_chain_kwargs={"prompt":PROMPT})
+  qa = ConversationalRetrievalChain.from_llm(ChatOpenAI(model="gpt-4-0125-preview", temperature=0.2, max_tokens=4096),
+                                               retriever=retriever, 
+                                               return_source_documents=True,
+                                               verbose=True,
+                                               output_key='answer',
+                                               combine_docs_chain_kwargs={'prompt': PROMPT},
+                                               condense_question_llm=ChatOpenAI(model="gpt-3.5-turbo", temperature=0))
   return qa
 
 def run_chain(chain, prompt: str, history=[]):
